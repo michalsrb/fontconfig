@@ -634,112 +634,134 @@ FcFontSetMatchInternal (FcFontSet   **sets,
 			FcPattern   *p,
 			FcResult    *result)
 {
-    double    	    score[PRI_END], bestscore[PRI_END];
-    int		    f;
-    FcFontSet	    *s;
-    FcPattern	    *best;
-    int		    i;
-    int		    set;
+    FcPattern *best = NULL;
 
-    for (i = 0; i < PRI_END; i++)
-	bestscore[i] = 0;
-    best = 0;
     if (FcDebug () & FC_DBG_MATCH)
     {
 	printf ("Match ");
 	FcPatternPrint (p);
     }
+
+    // Count fonts in all sets
+    size_t font_count = 0;
+    int set;
     for (set = 0; set < nsets; set++)
+	font_count += sets[set]->nfont;
+
+    // Handle special case when there are no fonts at all
+    if (font_count == 0)
+	goto out0;
+
+    // Create bitset that marks fonts that should be considered, i.e. weren't excluded yet
+    FcBitset *possible_matches = FcBitsetCreate(font_count);
+    if (!possible_matches) {
+	*result = FcResultOutOfMemory;
+	goto out0;
+    }
+
+    FcBitsetClear(possible_matches, FcTrue);
+
+    // Create bitset that marks fonts that had best score in current test
+    FcBitset *best_matches_so_far = FcBitsetCreate(font_count);
+    if (!best_matches_so_far) {
+	*result = FcResultOutOfMemory;
+	goto out1;
+    }
+
+    // Iterate over all matchers ordered by priority
+    int priority;
+    for (priority = 0; priority < PRI_END; priority++)
     {
-	s = sets[set];
-	if (!s)
+	// Find the matcher for given priority
+	const FcMatcher *matcher = NULL;
+	for (matcher = &_FcMatchers[0]; matcher->weak != priority && matcher->strong != priority; matcher++);
+	assert(matcher);
+
+	// Skip to next one if the pattern doesn't have the object
+	const FcPatternElt *p_elt = FcPatternObjectFindElt(p, matcher->object);
+	if (!p_elt)
 	    continue;
-	for (f = 0; f < s->nfont; f++)
+
+	// The best_so_far bitset keeps track of all fonts that share the best score so far while we iterate over them
+	FcBitsetClear(best_matches_so_far, FcFalse);
+	double best_score_so_far = 1e99;
+
+	// Iterate over all fonts in all sets
+	int index = 0;
+	int set;
+	for (set = 0; set < nsets; set++)
 	{
-	    if (FcDebug () & FC_DBG_MATCHV)
+	    FcFontSet *s = sets[set];
+	    if (!s)
+		continue;
+
+	    int f;
+	    for (f = 0; f < s->nfont; f++, index++)
 	    {
-		printf ("Font %d ", f);
-		FcPatternPrint (s->fonts[f]);
-	    }
-	    if (!FcCompare (p, s->fonts[f], score, result))
-		return 0;
-	    if (FcDebug () & FC_DBG_MATCHV)
-	    {
-		printf ("Score");
-		for (i = 0; i < PRI_END; i++)
+		FcPattern *font = s->fonts[f];
+
+		// Skip the font if it was already excluded by matchers with higher priority
+		if (!FcBitsetGet(possible_matches, index))
+		    continue;
+
+		// Compare the font's value lists to the pattern's value list and measure distance.
+		// If the font doesn't contain such object, it is considered as distance 0 (best).
+		double score_strong = 0.0, score_weak = 0.0;
+		const FcPatternElt *font_elt = FcPatternObjectFindElt(font, matcher->object);
+		if (font_elt)
 		{
-		    printf (" %g", score[i]);
+		    if (!FcCompareValueList (matcher->object, matcher,
+					    FcPatternEltValues(p_elt),
+					    FcPatternEltValues(font_elt),
+					    NULL, &score_strong, &score_weak,
+					    NULL, result))
+		    {
+			best = NULL;
+			goto out2;
+		    }
 		}
-		printf ("\n");
-	    }
-	    for (i = 0; i < PRI_END; i++)
-	    {
-		if (best && bestscore[i] < score[i])
-		    break;
-		if (!best || score[i] < bestscore[i])
+
+		double score = (FcPatternEltValues(p_elt)->binding == FcValueBindingStrong ? score_strong : score_weak);
+
+		// If this font was better match than the best so far, forget them and remember new best.
+		if (score < best_score_so_far)
 		{
-		    for (i = 0; i < PRI_END; i++)
-			bestscore[i] = score[i];
-		    best = s->fonts[f];
-		    break;
+		    best = font;
+
+		    FcBitsetClear(best_matches_so_far, FcFalse);
+		    best_score_so_far = score;
+		}
+
+		// If this font is at least as good as the best ones so far, remember it.
+		if (score == best_score_so_far)
+		{
+		    FcBitsetSet(best_matches_so_far, index, FcTrue);
 		}
 	    }
 	}
-    }
-    if (FcDebug () & FC_DBG_MATCH)
-    {
-	printf ("Best score");
-	for (i = 0; i < PRI_END; i++)
-	    printf (" %g", bestscore[i]);
-	printf ("\n");
-	FcPatternPrint (best);
-    }
-    if (FcDebug () & FC_DBG_MATCH2)
-    {
-	char *env = getenv ("FC_DBG_MATCH_FILTER");
-	FcObjectSet *os = NULL;
 
-	if (env)
-	{
-	    char *ss, *s;
-	    char *p;
-	    FcBool f = FcTrue;
+	// If we managed to narrow the search down to one font, it is stored in `best` variable, go out.
+	if (FcBitsetCountOnes(best_matches_so_far) <= 1)
+	    break;
 
-	    ss = s = strdup (env);
-	    os = FcObjectSetCreate ();
-	    while (f)
-	    {
-		size_t len;
-		char *x;
-
-		if (!(p = strchr (s, ',')))
-		{
-		    f = FcFalse;
-		    len = strlen (s) + 1;
-		}
-		else
-		{
-		    len = (p - s) + 1;
-		}
-		x = malloc (sizeof (char) * len);
-		strncpy (x, s, len - 1);
-		x[len - 1] = 0;
-		if (FcObjectFromName (x) > 0)
-		    FcObjectSetAdd (os, x);
-		s = p + 1;
-		free (x);
-	    }
-	    free (ss);
-	}
-	FcPatternPrint2 (p, best, os);
-	if (os)
-	    FcObjectSetDestroy (os);
+	// If we got here, there are multiple fonts in `best_matches_so_far` set, we need to narrow them down more in next iteration.
+	// Swap `best_matches_so_far` with `possible_matches`. The `best_matches_so_far` is new narrowed down version of `possible_matches` and old `possible_matches` will be reset and reused as in next iteration.
+	FcBitset *tmp = best_matches_so_far;
+	best_matches_so_far = possible_matches;
+	possible_matches = tmp;
     }
+
     /* assuming that 'result' is initialized with FcResultNoMatch
      * outside this function */
     if (best)
 	*result = FcResultMatch;
 
+out2:
+    FcBitsetDestroy(best_matches_so_far);
+out1:
+    FcBitsetDestroy(possible_matches);
+
+out0:
     return best;
 }
 
