@@ -128,6 +128,7 @@ libfontconfig_la_SOURCES = \
 	fcarch.h \
 	fcatomic.c \
 	fcatomic.h \
+	fcbitset.c \
 	fcblanks.c \
 	fccache.c \
 	fccfg.c \

@@ -568,6 +568,28 @@ struct _FcValuePromotionBuffer {
   } u;
 };
 
+/* fcbitset.c */
+
+typedef struct _FcBitset FcBitset;
+
+FcPrivate FcBitset *
+FcBitsetCreate (size_t size);
+
+FcPrivate void
+FcBitsetDestroy (FcBitset *bitset);
+
+FcPrivate void
+FcBitsetClear (FcBitset *bitset, FcBool value);
+
+FcPrivate void
+FcBitsetSet (FcBitset *bitset, size_t index, FcBool value);
+
+FcPrivate FcBool
+FcBitsetGet (const FcBitset *bitset, size_t index);
+
+FcPrivate size_t
+FcBitsetCountOnes (const FcBitset *bitset);
+
 /* fcblanks.c */
 
 /* fccache.c */
