@@ -42,7 +42,7 @@ FC_OBJECT (HINTING,		FcTypeBool,	NULL,			NULL)
 FC_OBJECT (VERTICAL_LAYOUT,	FcTypeBool,	NULL,			NULL)
 FC_OBJECT (AUTOHINT,		FcTypeBool,	NULL,			NULL)
 FC_OBJECT (GLOBAL_ADVANCE,	FcTypeBool,	NULL,			NULL)	/* deprecated */
-FC_OBJECT (FILE,		FcTypeString,	FcCompareFilename,	NULL)
+FC_OBJECT (FILE,		FcTypeString,	FcCompareFilename,	FcPreprocessFilename)
 FC_OBJECT (INDEX,		FcTypeInteger,	NULL,			NULL)
 FC_OBJECT (RASTERIZER,		FcTypeString,	FcCompareString,	FcPreprocessString)	/* deprecated */
 FC_OBJECT (OUTLINE,		FcTypeBool,	FcCompareBool,		NULL)

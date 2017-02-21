@@ -265,15 +265,42 @@ bail:
     return ret;
 }
 
+static FcPrepValue
+FcPreprocessFilename (FcValue *v)
+{
+    FcPrepValue prep;
+
+    prep.type = FcPrepStrFilename;
+
+    const FcChar8* str = FcValueString(v);
+    prep.str_hash = FcStrHashIgnoreBlanksAndCase(str);
+    prep.filename_has_globs = (strchr((const char *)str, '*') != NULL && strchr((const char *)str, '?') != NULL);
+
+    return prep;
+}
+
 static double
 FcCompareFilename (FcValue *v1, FcPrepValue *p1, FcValue *v2, FcPrepValue *p2)
 {
+    FcBool may_have_globs = FcTrue;
+    FcBool may_be_same = FcTrue;
+
+    if (p1->type == FcPrepStrFilename)
+    {
+	may_have_globs = p1->filename_has_globs;
+
+	if (p2->type == FcPrepStrFilename)
+	{
+	    may_be_same = (p1->str_hash == p2->str_hash);
+	}
+    }
+
     const FcChar8 *s1 = FcValueString (v1), *s2 = FcValueString (v2);
-    if (FcStrCmp (s1, s2) == 0)
+    if (may_be_same && FcStrCmp (s1, s2) == 0)
 	return 0.0;
-    else if (FcStrCmpIgnoreCase (s1, s2) == 0)
+    else if (may_be_same && FcStrCmpIgnoreCase (s1, s2) == 0)
 	return 1.0;
-    else if (FcStrGlobMatch (s1, s2))
+    else if (may_have_globs && FcStrGlobMatch (s1, s2))
 	return 2.0;
     else
 	return 3.0;
