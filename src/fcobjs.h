@@ -22,7 +22,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 /* DON'T REORDER!  The order is part of the cache signature. */
-FC_OBJECT (FAMILY,		FcTypeString,	FcCompareFamily,	NULL)
+FC_OBJECT (FAMILY,		FcTypeString,	FcCompareFamily,	FcPreprocessFamily)
 FC_OBJECT (FAMILYLANG,		FcTypeString,	NULL,			NULL)
 FC_OBJECT (STYLE,		FcTypeString,	FcCompareString,	FcPreprocessString)
 FC_OBJECT (STYLELANG,		FcTypeString,	NULL,			NULL)
