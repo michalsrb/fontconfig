@@ -1385,6 +1385,22 @@ FcValueListSerialize (FcSerialize *serialize, const FcValueList *vl)
 	default:
 	    break;
 	}
+
+	vl_serialized->prep_value.type = vl->prep_value.type;
+	switch ((int) vl->prep_value.type) {
+	case FcPrepStrHash:
+	case FcPrepStrHashIgnoreCase:
+	case FcPrepStrHashIgnoreBlanksAndCase:
+	    vl_serialized->prep_value.str_hash = vl->prep_value.str_hash;
+	    break;
+	case FcPrepStrFilename:
+	    vl_serialized->prep_value.str_hash = vl->prep_value.str_hash;
+	    vl_serialized->prep_value.filename_has_globs = vl->prep_value.filename_has_globs;
+	    break;
+	default:
+	    break;
+	}
+
 	prev_serialized = vl_serialized;
 	vl = vl->next;
     }

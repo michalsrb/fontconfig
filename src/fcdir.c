@@ -342,6 +342,7 @@ FcDirCacheScan (const FcChar8 *dir, FcConfig *config)
     const FcChar8	*sysroot = FcConfigGetSysRoot (config);
     FcChar8		*d;
     int			fd = -1;
+    int			i;
 
     if (sysroot)
 	d = FcStrBuildFilename (sysroot, dir, NULL);
@@ -368,6 +369,14 @@ FcDirCacheScan (const FcChar8 *dir, FcConfig *config)
      */
     if (!FcDirScanConfig (set, dirs, NULL, d, FcTrue, config))
 	goto bail2;
+
+    /*
+     * Preprocess all fonts
+     */
+    for (i = 0; i < set->nfont; i++)
+    {
+	FcPreprocessPattern (set->fonts[i]);
+    }
 
     /*
      * Build the cache object

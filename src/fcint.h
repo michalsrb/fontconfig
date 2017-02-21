@@ -166,11 +166,28 @@ typedef enum _FcValueBinding {
 #define FcValueLangSet(v)	FcPointerMember(v,u.l,const FcLangSet)
 #define FcValueRange(v)		FcPointerMember(v,u.r,const FcRange)
 
+typedef enum _FcPrepType {
+    FcPrepNone,
+    FcPrepStrHash,
+    FcPrepStrHashIgnoreCase,
+    FcPrepStrHashIgnoreBlanksAndCase,
+    FcPrepStrFilename,
+} FcPrepType;
+
+typedef struct _FcPrepValue {
+    FcPrepType type;
+
+    // TODO: Turn into union sharing with other values if needed
+    FcChar32	str_hash;
+    FcBool	filename_has_globs;
+} FcPrepValue;
+
 typedef struct _FcValueList *FcValueListPtr;
 
 typedef struct _FcValueList {
     struct _FcValueList	*next;
     FcValue		value;
+    FcPrepValue		prep_value;
     FcValueBinding	binding;
 } FcValueList;
 
@@ -938,11 +955,14 @@ FcListPatternMatchAny (const FcPattern *p,
 
 /* fcmatch.c */
 
+FcPrivate void
+FcPreprocessPattern (FcPattern *pat);
+
 /* fcname.c */
 
 enum {
   FC_INVALID_OBJECT = 0,
-#define FC_OBJECT(NAME, Type, Cmp) FC_##NAME##_OBJECT,
+#define FC_OBJECT(NAME, Type, Cmp, Prep) FC_##NAME##_OBJECT,
 #include "fcobjs.h"
 #undef FC_OBJECT
   FC_ONE_AFTER_MAX_BASE_OBJECT
