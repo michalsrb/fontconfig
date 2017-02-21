@@ -55,9 +55,26 @@ FcCompareNumber (FcValue *value1, FcPrepValue *prep1, FcValue *value2, FcPrepVal
     return v;
 }
 
+static FcPrepValue
+FcPreprocessString (FcValue *v)
+{
+    FcPrepValue prep;
+    prep.type = FcPrepStrHashIgnoreCase;
+    prep.str_hash = FcStrHashIgnoreCase(FcValueString(v));
+    return prep;
+}
+
 static double
 FcCompareString (FcValue *v1, FcPrepValue *p1, FcValue *v2, FcPrepValue *p2)
 {
+    if (p1->type == FcPrepStrHashIgnoreCase &&
+	p2->type == FcPrepStrHashIgnoreCase)
+    {
+	// If hashes are not matching, return fast
+	if (p1->str_hash != p2->str_hash)
+	    return 1.0;
+    }
+
     return (double) FcStrCmpIgnoreCase (FcValueString(v1), FcValueString(v2)) != 0;
 }
 
