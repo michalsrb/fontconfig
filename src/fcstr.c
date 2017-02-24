@@ -134,7 +134,7 @@ FcStrCaseWalkerLong (FcCaseWalker *w, FcChar8 r)
 }
 
 static FcChar8
-FcStrCaseWalkerNext (FcCaseWalker *w, const char *delims)
+FcStrCaseWalkerNext (FcCaseWalker *w)
 {
     FcChar8	r;
 
@@ -144,15 +144,45 @@ FcStrCaseWalkerNext (FcCaseWalker *w, const char *delims)
 	    return r;
 	w->read = 0;
     }
-    do
-    {
-	r = *w->src++;
-    } while (r != 0 && delims && strchr (delims, r));
+    r = *w->src++;
 
     if ((r & 0xc0) == 0xc0)
 	return FcStrCaseWalkerLong (w, r);
     if ('A' <= r && r <= 'Z')
         r = r - 'A' + 'a';
+    return r;
+}
+
+static FcChar8
+FcStrCaseWalkerNextSkipDelim (FcCaseWalker *w, char delim)
+{
+    FcChar8	r;
+
+    do
+    {
+	r = FcStrCaseWalkerNext(w);
+    } while (r == delim);
+
+    return r;
+}
+
+static FcChar8
+FcStrCaseWalkerNextSkipDelims (FcCaseWalker *w, const char *delims)
+{
+    FcChar8	r;
+
+    while ((r = FcStrCaseWalkerNext(w)))
+    {
+	if (delims) {
+	    const char *d = delims;
+	    while(*d && *d != r) d++;
+	    if (*d)
+		continue;
+	}
+
+	break;
+    }
+
     return r;
 }
 
@@ -164,13 +194,13 @@ FcStrDowncase (const FcChar8 *s)
     FcChar8	    *dst, *d;
 
     FcStrCaseWalkerInit (s, &w);
-    while (FcStrCaseWalkerNext (&w, NULL))
+    while (FcStrCaseWalkerNext (&w))
 	len++;
     d = dst = malloc (len + 1);
     if (!d)
 	return 0;
     FcStrCaseWalkerInit (s, &w);
-    while ((*d++ = FcStrCaseWalkerNext (&w, NULL)));
+    while ((*d++ = FcStrCaseWalkerNext (&w)));
     return dst;
 }
 
@@ -187,8 +217,8 @@ FcStrCmpIgnoreCase (const FcChar8 *s1, const FcChar8 *s2)
 
     for (;;)
     {
-	c1 = FcStrCaseWalkerNext (&w1, NULL);
-	c2 = FcStrCaseWalkerNext (&w2, NULL);
+	c1 = FcStrCaseWalkerNext (&w1);
+	c2 = FcStrCaseWalkerNext (&w2);
 	if (!c1 || (c1 != c2))
 	    break;
     }
@@ -198,7 +228,22 @@ FcStrCmpIgnoreCase (const FcChar8 *s1, const FcChar8 *s2)
 int
 FcStrCmpIgnoreBlanksAndCase (const FcChar8 *s1, const FcChar8 *s2)
 {
-    return FcStrCmpIgnoreCaseAndDelims (s1, s2, (const FcChar8 *)" ");
+    FcCaseWalker    w1, w2;
+    FcChar8	    c1, c2;
+
+    if (s1 == s2) return 0;
+
+    FcStrCaseWalkerInit (s1, &w1);
+    FcStrCaseWalkerInit (s2, &w2);
+
+    for (;;)
+    {
+	c1 = FcStrCaseWalkerNextSkipDelim (&w1, ' ');
+	c2 = FcStrCaseWalkerNextSkipDelim (&w2, ' ');
+	if (!c1 || (c1 != c2))
+	    break;
+    }
+    return (int) c1 - (int) c2;
 }
 
 int
@@ -214,8 +259,8 @@ FcStrCmpIgnoreCaseAndDelims (const FcChar8 *s1, const FcChar8 *s2, const FcChar8
 
     for (;;)
     {
-	c1 = FcStrCaseWalkerNext (&w1, (const char *)delims);
-	c2 = FcStrCaseWalkerNext (&w2, (const char *)delims);
+	c1 = FcStrCaseWalkerNextSkipDelims (&w1, (const char *)delims);
+	c2 = FcStrCaseWalkerNextSkipDelims (&w2, (const char *)delims);
 	if (!c1 || (c1 != c2))
 	    break;
     }
@@ -251,7 +296,7 @@ FcStrHashIgnoreCase (const FcChar8 *s)
     FcChar8	    c;
 
     FcStrCaseWalkerInit (s, &w);
-    while ((c = FcStrCaseWalkerNext (&w, NULL)))
+    while ((c = FcStrCaseWalkerNext (&w)))
 	h = ((h << 3) ^ (h >> 3)) ^ c;
     return h;
 }
@@ -264,7 +309,7 @@ FcStrHashIgnoreBlanksAndCase (const FcChar8 *s)
     FcChar8	    c;
 
     FcStrCaseWalkerInit (s, &w);
-    while ((c = FcStrCaseWalkerNext (&w, " ")))
+    while ((c = FcStrCaseWalkerNextSkipDelim (&w, ' ')))
 	h = ((h << 3) ^ (h >> 3)) ^ c;
     return h;
 }
@@ -284,8 +329,8 @@ FcStrIsAtIgnoreBlanksAndCase (const FcChar8 *s1, const FcChar8 *s2)
 
     for (;;)
     {
-	c1 = FcStrCaseWalkerNext (&w1, " ");
-	c2 = FcStrCaseWalkerNext (&w2, " ");
+	c1 = FcStrCaseWalkerNextSkipDelim (&w1, ' ');
+	c2 = FcStrCaseWalkerNextSkipDelim (&w2, ' ');
 	if (!c1 || (c1 != c2))
 	    break;
     }
@@ -343,8 +388,8 @@ FcStrIsAtIgnoreCase (const FcChar8 *s1, const FcChar8 *s2)
 
     for (;;)
     {
-	c1 = FcStrCaseWalkerNext (&w1, NULL);
-	c2 = FcStrCaseWalkerNext (&w2, NULL);
+	c1 = FcStrCaseWalkerNext (&w1);
+	c2 = FcStrCaseWalkerNext (&w2);
 	if (!c1 || (c1 != c2))
 	    break;
     }
@@ -412,8 +457,8 @@ FcStrMatchIgnoreCaseAndDelims (const FcChar8 *s1, const FcChar8 *s2, const FcCha
 
     for (;;)
     {
-	c1 = FcStrCaseWalkerNext (&w1, (const char *)delims);
-	c2 = FcStrCaseWalkerNext (&w2, (const char *)delims);
+	c1 = FcStrCaseWalkerNextSkipDelims (&w1, (const char *)delims);
+	c2 = FcStrCaseWalkerNextSkipDelims (&w2, (const char *)delims);
 	if (!c1 || (c1 != c2))
 	    break;
     }
@@ -480,12 +525,12 @@ FcStrStrIgnoreCase (const FcChar8 *s1, const FcChar8 *s2)
     FcStrCaseWalkerInit (s1, &w1);
     FcStrCaseWalkerInit (s2, &w2);
 
-    c2 = FcStrCaseWalkerNext (&w2, NULL);
+    c2 = FcStrCaseWalkerNext (&w2);
 
     for (;;)
     {
 	cur = w1.src;
-	c1 = FcStrCaseWalkerNext (&w1, NULL);
+	c1 = FcStrCaseWalkerNext (&w1);
 	if (!c1)
 	    break;
 	if (c1 == c2)
@@ -496,8 +541,8 @@ FcStrStrIgnoreCase (const FcChar8 *s1, const FcChar8 *s2)
 
 	    for (;;)
 	    {
-		c1t = FcStrCaseWalkerNext (&w1t, NULL);
-		c2t = FcStrCaseWalkerNext (&w2t, NULL);
+		c1t = FcStrCaseWalkerNext (&w1t);
+		c2t = FcStrCaseWalkerNext (&w2t);
 
 		if (!c2t)
 		    return cur;
