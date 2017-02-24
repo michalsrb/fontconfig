@@ -479,24 +479,22 @@ FcLangSetCopy (const FcLangSet *ls)
     memcpy (new->map, ls->map, FC_MIN (sizeof (new->map), ls->map_size * sizeof (ls->map[0])));
     if (ls->extra)
     {
-	FcStrList	*list;
+	FcStrList	list;
 	FcChar8		*extra;
 	
 	new->extra = FcStrSetCreate ();
 	if (!new->extra)
 	    goto bail1;
 
-	list = FcStrListCreate (ls->extra);	
-	if (!list)
-	    goto bail1;
-	
-	while ((extra = FcStrListNext (list)))
+	FcStrListInitialize (ls->extra, &list);
+
+	while ((extra = FcStrListNext (&list)))
 	    if (!FcStrSetAdd (new->extra, extra))
 	    {
-		FcStrListDone (list);
+		FcStrListRelease (&list);
 		goto bail1;
 	    }
-	FcStrListDone (list);
+	FcStrListRelease (&list);
     }
     return new;
 bail1:
@@ -629,19 +627,19 @@ FcLangSetHasLang (const FcLangSet *ls, const FcChar8 *lang)
     }
     if (ls->extra)
     {
-	FcStrList	*list = FcStrListCreate (ls->extra);
+	FcStrList	list;
 	FcChar8		*extra;
+
+	FcStrListInitialize (ls->extra, &list);
 	
-	if (list)
+	while (best > FcLangEqual && (extra = FcStrListNext (&list)))
 	{
-	    while (best > FcLangEqual && (extra = FcStrListNext (list)))
-	    {
-		r = FcLangCompare (lang, extra);
-		if (r < best)
-		    best = r;
-	    }
-	    FcStrListDone (list);
+	    r = FcLangCompare (lang, extra);
+	    if (r < best)
+		best = r;
 	}
+	FcStrListRelease (&list);
+
     }
     return best;
 }
@@ -649,20 +647,20 @@ FcLangSetHasLang (const FcLangSet *ls, const FcChar8 *lang)
 static FcLangResult
 FcLangSetCompareStrSet (const FcLangSet *ls, FcStrSet *set)
 {
-    FcStrList	    *list = FcStrListCreate (set);
+    FcStrList	    list;
     FcLangResult    r, best = FcLangDifferentLang;
     FcChar8	    *extra;
 
-    if (list)
+    FcStrListInitialize (set, &list);
+
+    while (best > FcLangEqual && (extra = FcStrListNext (&list)))
     {
-	while (best > FcLangEqual && (extra = FcStrListNext (list)))
-	{
-	    r = FcLangSetHasLang (ls, extra);
-	    if (r < best)
-		best = r;
-	}
-	FcStrListDone (list);
+	r = FcLangSetHasLang (ls, extra);
+	if (r < best)
+	    best = r;
     }
+    FcStrListRelease (&list);
+
     return best;
 }
 
@@ -814,27 +812,27 @@ FcNameUnparseLangSet (FcStrBuf *buf, const FcLangSet *ls)
     }
     if (ls->extra)
     {
-	FcStrList   *list = FcStrListCreate (ls->extra);
+	FcStrList   list;
 	FcChar8	    *extra;
 
-	if (!list)
-	    return FcFalse;
-	while ((extra = FcStrListNext (list)))
+	FcStrListInitialize (ls->extra, &list);
+
+	while ((extra = FcStrListNext (&list)))
 	{
 	    if (!first)
 		if (!FcStrBufChar (buf, '|'))
                 {
-                    FcStrListDone (list);
+                    FcStrListRelease (&list);
 		    return FcFalse;
                 }
 	    if (!FcStrBufString (buf, extra))
                 {
-                    FcStrListDone (list);
+                    FcStrListRelease (&list);
                     return FcFalse;
                 }
 	    first = FcFalse;
 	}
-        FcStrListDone (list);
+        FcStrListRelease (&list);
     }
     return FcTrue;
 }
@@ -890,20 +888,19 @@ FcLangSetContainsLang (const FcLangSet *ls, const FcChar8 *lang)
     }
     if (ls->extra)
     {
-	FcStrList	*list = FcStrListCreate (ls->extra);
+	FcStrList	list;
 	FcChar8		*extra;
+
+	FcStrListInitialize (ls->extra, &list);
 	
-	if (list)
+	while ((extra = FcStrListNext (&list)))
 	{
-	    while ((extra = FcStrListNext (list)))
-	    {
-		if (FcLangContains (extra, lang))
-		    break;
-	    }
-	    FcStrListDone (list);
-    	    if (extra)
-		return FcTrue;
+	    if (FcLangContains (extra, lang))
+		break;
 	}
+	FcStrListRelease (&list);
+	if (extra)
+	    return FcTrue;
     }
     return FcFalse;
 }
@@ -948,24 +945,23 @@ FcLangSetContains (const FcLangSet *lsa, const FcLangSet *lsb)
     }
     if (lsb->extra)
     {
-	FcStrList   *list = FcStrListCreate (lsb->extra);
+	FcStrList   list;
 	FcChar8	    *extra;
 
-	if (list)
+	FcStrListInitialize (lsb->extra, &list);
+
+	while ((extra = FcStrListNext (&list)))
 	{
-	    while ((extra = FcStrListNext (list)))
+	    if (!FcLangSetContainsLang (lsa, extra))
 	    {
-		if (!FcLangSetContainsLang (lsa, extra))
-		{
-		    if (FcDebug() & FC_DBG_MATCHV)
-			printf ("\tMissing string %s\n", extra);
-		    break;
-		}
+		if (FcDebug() & FC_DBG_MATCHV)
+		    printf ("\tMissing string %s\n", extra);
+		break;
 	    }
-	    FcStrListDone (list);
-	    if (extra)
-		return FcFalse;
 	}
+	FcStrListRelease (&list);
+	if (extra)
+	    return FcFalse;
     }
     return FcTrue;
 }
@@ -1008,16 +1004,15 @@ FcLangSetGetLangs (const FcLangSet *ls)
 
     if (ls->extra)
     {
-	FcStrList	*list = FcStrListCreate (ls->extra);
+	FcStrList	list;
 	FcChar8		*extra;
 
-	if (list)
-	{
-	    while ((extra = FcStrListNext (list)))
-		FcStrSetAdd (langs, extra);
+	FcStrListInitialize (ls->extra, &list);
 
-	    FcStrListDone (list);
-	}
+	while ((extra = FcStrListNext (&list)))
+	    FcStrSetAdd (langs, extra);
+
+	FcStrListRelease (&list);
     }
 
     return langs;
@@ -1031,15 +1026,16 @@ FcLangSetOperate(const FcLangSet	*a,
 {
     FcLangSet	*langset = FcLangSetCopy (a);
     FcStrSet	*set = FcLangSetGetLangs (b);
-    FcStrList	*sl = FcStrListCreate (set);
+    FcStrList	sl;
     FcChar8	*str;
 
+    FcStrListInitialize (set, &sl);
     FcStrSetDestroy (set);
-    while ((str = FcStrListNext (sl)))
+    while ((str = FcStrListNext (&sl)))
     {
 	func (langset, str);
     }
-    FcStrListDone (sl);
+    FcStrListRelease (&sl);
 
     return langset;
 }

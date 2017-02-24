@@ -153,22 +153,22 @@ bail0:
 static FcFileTime
 FcConfigNewestFile (FcStrSet *files)
 {
-    FcStrList	    *list = FcStrListCreate (files);
+    FcStrList	    list;
     FcFileTime	    newest = { 0, FcFalse };
     FcChar8	    *file;
     struct  stat    statb;
 
-    if (list)
-    {
-	while ((file = FcStrListNext (list)))
-	    if (FcStat (file, &statb) == 0)
-		if (!newest.set || statb.st_mtime - newest.time > 0)
-		{
-		    newest.set = FcTrue;
-		    newest.time = statb.st_mtime;
-		}
-	FcStrListDone (list);
-    }
+    FcStrListInitialize (files, &list);
+
+    while ((file = FcStrListNext (&list)))
+	if (FcStat (file, &statb) == 0)
+	    if (!newest.set || statb.st_mtime - newest.time > 0)
+	    {
+		newest.set = FcTrue;
+		newest.time = statb.st_mtime;
+	    }
+    FcStrListRelease (&list);
+
     return newest;
 }
 
@@ -365,15 +365,13 @@ FcConfigAddCache (FcConfig *config, FcCache *cache,
 static FcBool
 FcConfigAddDirList (FcConfig *config, FcSetName set, FcStrSet *dirSet)
 {
-    FcStrList	    *dirlist;
+    FcStrList	    dirlist;
     FcChar8	    *dir;
     FcCache	    *cache;
 
-    dirlist = FcStrListCreate (dirSet);
-    if (!dirlist)
-        return FcFalse;
-	
-    while ((dir = FcStrListNext (dirlist)))
+    FcStrListInitialize (dirSet, &dirlist);
+
+    while ((dir = FcStrListNext (&dirlist)))
     {
 	if (FcDebug () & FC_DBG_FONTSET)
 	    printf ("adding fonts from %s\n", dir);
@@ -383,7 +381,7 @@ FcConfigAddDirList (FcConfig *config, FcSetName set, FcStrSet *dirSet)
 	FcConfigAddCache (config, cache, set, dirSet);
 	FcDirCacheUnload (cache);
     }
-    FcStrListDone (dirlist);
+    FcStrListRelease (&dirlist);
     return FcTrue;
 }
 
@@ -1541,14 +1539,15 @@ FcConfigSubstituteWithPat (FcConfig    *config,
 	strs = FcGetDefaultLangs ();
 	if (strs)
 	{
-	    FcStrList *l = FcStrListCreate (strs);
+	    FcStrList l;
 	    FcChar8 *lang;
 	    FcValue v;
 	    FcLangSet *lsund = FcLangSetCreate ();
 
+	    FcStrListInitialize (strs, &l);
 	    FcLangSetAdd (lsund, (const FcChar8 *)"und");
 	    FcStrSetDestroy (strs);
-	    while (l && (lang = FcStrListNext (l)))
+	    while ((lang = FcStrListNext (&l)))
 	    {
 		FcPatternElt *e = FcPatternObjectFindElt (p, FC_LANG_OBJECT);
 
@@ -1588,7 +1587,7 @@ FcConfigSubstituteWithPat (FcConfig    *config,
 		FcPatternObjectAddWithBinding (p, FC_LANG_OBJECT, v, FcValueBindingWeak, FcTrue);
 	    }
 	bail_lang:
-	    FcStrListDone (l);
+	    FcStrListRelease (&l);
 	    FcLangSetDestroy (lsund);
 	}
 	if (FcPatternObjectGet (p, FC_PRGNAME_OBJECT, 0, &v) == FcResultNoMatch)
@@ -2195,7 +2194,7 @@ FcConfigAppFontAddFile (FcConfig    *config,
 {
     FcFontSet	*set;
     FcStrSet	*subdirs;
-    FcStrList	*sublist;
+    FcStrList	sublist;
     FcChar8	*subdir;
 
     if (!config)
@@ -2226,14 +2225,12 @@ FcConfigAppFontAddFile (FcConfig    *config,
 	FcStrSetDestroy (subdirs);
 	return FcFalse;
     }
-    if ((sublist = FcStrListCreate (subdirs)))
+    FcStrListInitialize (subdirs, &sublist);
+    while ((subdir = FcStrListNext (&sublist)))
     {
-	while ((subdir = FcStrListNext (sublist)))
-	{
-	    FcConfigAppFontAddDir (config, subdir);
-	}
-	FcStrListDone (sublist);
+	FcConfigAppFontAddDir (config, subdir);
     }
+    FcStrListRelease (&sublist);
     FcStrSetDestroy (subdirs);
     return FcTrue;
 }

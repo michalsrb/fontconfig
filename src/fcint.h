@@ -1234,6 +1234,12 @@ FcStrSerializeAlloc (FcSerialize *serialize, const FcChar8 *str);
 FcPrivate FcChar8 *
 FcStrSerialize (FcSerialize *serialize, const FcChar8 *str);
 
+FcPrivate void
+FcStrListInitialize (FcStrSet *set, FcStrList *list);
+
+FcPrivate void
+FcStrListRelease (FcStrList *list);
+
 /* fcobjs.c */
 
 FcPrivate void

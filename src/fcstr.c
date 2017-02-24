@@ -1344,6 +1344,14 @@ FcStrSetDestroy (FcStrSet *set)
     free (set);
 }
 
+void
+FcStrListInitialize (FcStrSet *set, FcStrList *list)
+{
+    list->set = set;
+    FcStrSetReference (set);
+    list->n = 0;
+}
+
 FcStrList *
 FcStrListCreate (FcStrSet *set)
 {
@@ -1352,9 +1360,7 @@ FcStrListCreate (FcStrSet *set)
     list = malloc (sizeof (FcStrList));
     if (!list)
 	return 0;
-    list->set = set;
-    FcStrSetReference (set);
-    list->n = 0;
+    FcStrListInitialize (set, list);
     return list;
 }
 
@@ -1373,9 +1379,15 @@ FcStrListNext (FcStrList *list)
 }
 
 void
-FcStrListDone (FcStrList *list)
+FcStrListRelease (FcStrList *list)
 {
     FcStrSetDestroy (list->set);
+}
+
+void
+FcStrListDone (FcStrList *list)
+{
+    FcStrListRelease (list);
     free (list);
 }
 

@@ -124,17 +124,15 @@ FcDirCacheUnlink (const FcChar8 *dir, FcConfig *config)
 {
     FcChar8	*cache_hashed = NULL;
     FcChar8	cache_base[CACHEBASE_LEN];
-    FcStrList	*list;
+    FcStrList	list;
     FcChar8	*cache_dir;
     const FcChar8 *sysroot = FcConfigGetSysRoot (config);
 
     FcDirCacheBasename (dir, cache_base);
 
-    list = FcStrListCreate (config->cacheDirs);
-    if (!list)
-        return FcFalse;
-	
-    while ((cache_dir = FcStrListNext (list)))
+    FcStrListInitialize (config->cacheDirs, &list);
+
+    while ((cache_dir = FcStrListNext (&list)))
     {
 	if (sysroot)
 	    cache_hashed = FcStrBuildFilename (sysroot, cache_dir, cache_base, NULL);
@@ -145,7 +143,7 @@ FcDirCacheUnlink (const FcChar8 *dir, FcConfig *config)
 	(void) unlink ((char *) cache_hashed);
 	FcStrFree (cache_hashed);
     }
-    FcStrListDone (list);
+    FcStrListRelease (&list);
     /* return FcFalse if something went wrong */
     if (cache_dir)
 	return FcFalse;
@@ -187,7 +185,7 @@ FcDirCacheProcess (FcConfig *config, const FcChar8 *dir,
 {
     int		fd = -1;
     FcChar8	cache_base[CACHEBASE_LEN];
-    FcStrList	*list;
+    FcStrList	list;
     FcChar8	*cache_dir, *d;
     struct stat file_stat, dir_stat;
     FcBool	ret = FcFalse;
@@ -206,11 +204,9 @@ FcDirCacheProcess (FcConfig *config, const FcChar8 *dir,
 
     FcDirCacheBasename (dir, cache_base);
 
-    list = FcStrListCreate (config->cacheDirs);
-    if (!list)
-        return FcFalse;
-	
-    while ((cache_dir = FcStrListNext (list)))
+    FcStrListInitialize (config->cacheDirs, &list);
+
+    while ((cache_dir = FcStrListNext (&list)))
     {
         FcChar8	*cache_hashed;
 
@@ -235,7 +231,7 @@ FcDirCacheProcess (FcConfig *config, const FcChar8 *dir,
 	}
     	FcStrFree (cache_hashed);
     }
-    FcStrListDone (list);
+    FcStrListRelease (&list);
 
     return ret;
 }
@@ -986,7 +982,7 @@ FcDirCacheWrite (FcCache *cache, FcConfig *config)
     FcChar8	    *cache_hashed;
     int 	    fd;
     FcAtomic 	    *atomic;
-    FcStrList	    *list;
+    FcStrList	    list;
     FcChar8	    *cache_dir = NULL;
     FcChar8	    *test_dir, *d = NULL;
     FcCacheSkip     *skip;
@@ -999,10 +995,8 @@ FcDirCacheWrite (FcCache *cache, FcConfig *config)
      * Write it to the first directory in the list which is writable
      */
 
-    list = FcStrListCreate (config->cacheDirs);
-    if (!list)
-	return FcFalse;
-    while ((test_dir = FcStrListNext (list)))
+    FcStrListInitialize (config->cacheDirs, &list);
+    while ((test_dir = FcStrListNext (&list)))
     {
 	if (d)
 	    FcStrFree (d);
@@ -1044,7 +1038,7 @@ FcDirCacheWrite (FcCache *cache, FcConfig *config)
     }
     if (d)
 	FcStrFree (d);
-    FcStrListDone (list);
+    FcStrListRelease (&list);
     if (!cache_dir)
 	return FcFalse;
 
@@ -1240,17 +1234,15 @@ FcDirCacheLock (const FcChar8 *dir,
 {
     FcChar8 *cache_hashed = NULL;
     FcChar8 cache_base[CACHEBASE_LEN];
-    FcStrList *list;
+    FcStrList list;
     FcChar8 *cache_dir;
     const FcChar8 *sysroot = FcConfigGetSysRoot (config);
     int fd = -1;
 
     FcDirCacheBasename (dir, cache_base);
-    list = FcStrListCreate (config->cacheDirs);
-    if (!list)
-	return -1;
+    FcStrListInitialize (config->cacheDirs, &list);
 
-    while ((cache_dir = FcStrListNext (list)))
+    while ((cache_dir = FcStrListNext (&list)))
     {
 	if (sysroot)
 	    cache_hashed = FcStrBuildFilename (sysroot, cache_dir, cache_base, NULL);
@@ -1280,10 +1272,10 @@ FcDirCacheLock (const FcChar8 *dir,
 	    break;
 	}
     }
-    FcStrListDone (list);
+    FcStrListRelease (&list);
     return fd;
 bail:
-    FcStrListDone (list);
+    FcStrListRelease (&list);
     if (fd != -1)
 	close (fd);
     return -1;
