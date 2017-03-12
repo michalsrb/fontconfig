@@ -201,6 +201,11 @@ typedef int FcObject;
 #define FC_EXT_OBJ_INDEX	1024
 #define FC_OBJ_ID(_n_)	((_n_) & (~FC_EXT_OBJ_INDEX))
 
+typedef struct _FcObjectIdSet {
+    int		nobject;
+    FcObject	*objects;
+} FcObjectIdSet;
+
 typedef struct _FcPatternElt *FcPatternEltPtr;
 
 /*
@@ -980,9 +985,6 @@ FcObjectFromName (const char * name);
 
 FcPrivate const char *
 FcObjectName (FcObject object);
-
-FcPrivate FcObjectSet *
-FcObjectGetSet (void);
 
 #define FcObjectCompare(a, b)	((int) a - (int) b)
 

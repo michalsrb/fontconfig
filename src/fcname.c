@@ -109,20 +109,6 @@ FcObjectFromName (const char * name)
     return FcObjectLookupIdByName (name);
 }
 
-FcObjectSet *
-FcObjectGetSet (void)
-{
-    int		i;
-    FcObjectSet	*os = NULL;
-
-
-    os = FcObjectSetCreate ();
-    for (i = 0; i < NUM_OBJECT_TYPES; i++)
-	FcObjectSetAdd (os, FcObjects[i].object);
-
-    return os;
-}
-
 const char *
 FcObjectName (FcObject object)
 {
