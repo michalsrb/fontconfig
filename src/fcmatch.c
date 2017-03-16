@@ -90,11 +90,11 @@ FcPreprocessFamily (FcValue *v)
 static double
 FcCompareFamily (FcValue *v1, FcPrepValue *p1, FcValue *v2, FcPrepValue *p2)
 {
-    if (p1->type == FcPrepStrHashIgnoreBlanksAndCase &&
-	p2->type == FcPrepStrHashIgnoreBlanksAndCase)
+    if (likely(p1->type == FcPrepStrHashIgnoreBlanksAndCase &&
+	       p2->type == FcPrepStrHashIgnoreBlanksAndCase))
     {
 	// If hashes are not matching, return fast
-	if (p1->str_hash != p2->str_hash)
+	if (likely(p1->str_hash != p2->str_hash))
 	    return 1.0;
     }
 
@@ -445,20 +445,20 @@ FcCompareValueList (FcObject	     object,
 	for (v1 = v1orig, j = 0; v1; v1 = FcValueListNext(v1), j++)
 	{
 	    v = (match->compare) (&v1->value, &v1->prep_value, &v2->value, &v2->prep_value);
-	    if (v < 0)
+	    if (unlikely(v < 0))
 	    {
 		*result = FcResultTypeMismatch;
 		return FcFalse;
 	    }
 	    v = v * 1000 + j;
-	    if (v < best)
+	    if (unlikely(v < best))
 	    {
 		if (bestValue)
 		    *bestValue = FcValueCanonicalize(&v2->value);
 		best = v;
 		pos = k;
 	    }
-	    if (v1->binding == FcValueBindingStrong)
+	    if (unlikely(v1->binding == FcValueBindingStrong))
 	    {
 		if (v < bestStrong)
 		    bestStrong = v;
