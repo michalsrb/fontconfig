@@ -695,6 +695,9 @@ FcFontSetMatchInternal (FcFontSet   **sets,
 			FcResult    *result)
 {
     FcPattern *best = NULL;
+    int set;
+    int index;
+    int f;
 
     if (FcDebug () & FC_DBG_MATCH)
     {
@@ -702,12 +705,22 @@ FcFontSetMatchInternal (FcFontSet   **sets,
 	FcPatternPrint (p);
     }
 
+    if (FcDebug () & FC_DBG_MATCHV)
+    {
+	index = 0;
+	for (set = 0; set < nsets; set++)
+	    for (f = 0; f < sets[set]->nfont; f++, index++)
+	    {
+		printf ("Font %d ", index);
+		FcPatternPrint (sets[set]->fonts[f]);
+	    }
+    }
+
     // Preprocess pattern
     FcPreprocessPattern(p);
 
     // Count fonts in all sets
     size_t font_count = 0;
-    int set;
     for (set = 0; set < nsets; set++)
 	font_count += sets[set]->nfont;
 
@@ -735,6 +748,9 @@ FcFontSetMatchInternal (FcFontSet   **sets,
     int priority;
     for (priority = 0; priority < PRI_END; priority++)
     {
+	if (FcDebug () & FC_DBG_MATCHV)
+	    printf ("Priority %d:\n", priority);
+
 	// Find the matcher for given priority
 	const FcMatcher *matcher = NULL;
 	for (matcher = &_FcMatchers[0]; matcher->weak != priority && matcher->strong != priority; matcher++);
@@ -750,9 +766,7 @@ FcFontSetMatchInternal (FcFontSet   **sets,
 	double best_score_so_far = 1e99;
 
 	// Iterate over all fonts in all sets
-	int index = 0;
-	int set;
-	for (set = 0; set < nsets; set++)
+	for (set = 0, index = 0; set < nsets; set++)
 	{
 	    FcFontSet *s = sets[set];
 	    if (!s)
@@ -803,6 +817,13 @@ FcFontSetMatchInternal (FcFontSet   **sets,
 	    }
 	}
 
+	if (FcDebug () & FC_DBG_MATCHV)
+	{
+	    printf ("Best ");
+	    FcBitsetPrint (best_matches_so_far);
+	}
+
+
 	// If we managed to narrow the search down to one font, it is stored in `best` variable, go out.
 	if (FcBitsetCountOnes(best_matches_so_far) <= 1)
 	    break;
@@ -812,6 +833,12 @@ FcFontSetMatchInternal (FcFontSet   **sets,
 	FcBitset *tmp = best_matches_so_far;
 	best_matches_so_far = possible_matches;
 	possible_matches = tmp;
+    }
+
+    if (FcDebug () & FC_DBG_MATCH)
+    {
+	printf ("Best ");
+	FcPatternPrint (best);
     }
 
     /* assuming that 'result' is initialized with FcResultNoMatch
