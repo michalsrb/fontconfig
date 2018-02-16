@@ -559,6 +559,18 @@ FcFontSetPrint (const FcFontSet *s)
     }
 }
 
+void
+FcBitsetPrint (const FcBitset *s)
+{
+    int 	i;
+    printf ("Bitset of size %d (%d ones): ", s->size, s->ones);
+    for (i = 0; i < (s->size + 7) / 8; i++)
+    {
+	printf ("%02x ", s->data[i]);
+    }
+    printf ("\n");
+}
+
 int FcDebugVal;
 
 void
