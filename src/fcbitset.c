@@ -8,12 +8,6 @@
 #include "fcint.h"
 #include <stdlib.h>
 
-struct _FcBitset {
-    size_t size;
-    size_t ones;
-    FcChar8 data[];
-};
-
 FcBitset *
 FcBitsetCreate (size_t size)
 {
