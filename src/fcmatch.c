@@ -765,6 +765,13 @@ FcFontSetMatchInternal (FcFontSet   **sets,
 	FcBitsetClear(best_matches_so_far, FcFalse);
 	double best_score_so_far = 1e99;
 
+	// For each priority we are only interested in getting one score.
+	// Its strength is only determinied by the priority, so do it right now.
+	double score = 0.0;
+	double *value_strong = likely(matcher->strong == priority) ? &score : NULL;
+	double *value_weak = likely(matcher->weak == priority) ? &score : NULL;
+	assert(value_strong || value_weak);
+
 	// Iterate over all fonts in all sets
 	for (set = 0, index = 0; set < nsets; set++)
 	{
@@ -783,22 +790,20 @@ FcFontSetMatchInternal (FcFontSet   **sets,
 
 		// Compare the font's value lists to the pattern's value list and measure distance.
 		// If the font doesn't contain such object, it is considered as distance 0 (best).
-		double score_strong = 0.0, score_weak = 0.0;
+		score = 0.0;
 		const FcPatternElt *font_elt = FcPatternObjectFindElt(font, matcher->object);
 		if (font_elt)
 		{
 		    if (!FcCompareValueList (matcher->object, matcher,
 					    FcPatternEltValues(p_elt),
 					    FcPatternEltValues(font_elt),
-					    NULL, &score_strong, &score_weak,
+					    NULL, value_strong, value_weak,
 					    NULL, result))
 		    {
 			best = NULL;
 			goto out2;
 		    }
 		}
-
-		double score = (FcPatternEltValues(p_elt)->binding == FcValueBindingStrong ? score_strong : score_weak);
 
 		// If this font was better match than the best so far, forget them and remember new best.
 		if (score < best_score_so_far)
